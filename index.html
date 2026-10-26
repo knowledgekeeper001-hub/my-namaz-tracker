@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Namaz Tracker</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f0f7f2;
+      color: #173d2b;
+    }
+    h1 { text-align: center; color: #087443; }
+    .card {
+      background: white;
+      padding: 16px;
+      margin: 12px 0;
+      border-radius: 14px;
+      box-shadow: 0 2px 8px #0001;
+    }
+    .prayer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin: 14px 0;
+    }
+    button {
+      padding: 10px 13px;
+      border: 0;
+      border-radius: 9px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .yes { background: #16803d; color: white; }
+    .no { background: #c62828; color: white; }
+    .active { outline: 3px solid #e2c66d; }
+    input { padding: 8px; max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>🕌 My Namaz Tracker</h1>
+
+  <div class="card">
+    <label for="day"><b>Select date:</b></label>
+    <input type="date" id="day">
+    <h3 id="heading"></h3>
+    <p id="progress">Prayed: 0 / 5</p>
+    <div id="prayers"></div>
+  </div>
+
+  <div class="card">
+    <h3>📅 Monthly Calendar</h3>
+    <input type="month" id="month">
+    <div id="calendar"></div>
+  </div>
+
+  <script>
+    const names = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+    const dayInput = document.getElementById("day");
+    const monthInput = document.getElementById("month");
+
+    const today = new Date();
+    const localDate = d =>
+      `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
+    dayInput.value = localDate(today);
+    monthInput.value = localDate(today).slice(0, 7);
+
+    function getRecord(date) {
+      return JSON.parse(localStorage.getItem("namaz-" + date) || "{}");
+    }
+
+    function saveRecord(date, record) {
+      localStorage.setItem("namaz-" + date, JSON.stringify(record));
+    }
+
+    function renderDay() {
+      const date = dayInput.value;
+      if (!date) return;
+
+      document.getElementById("heading").textContent = date;
+      const record = getRecord(date);
+      const container = document.getElementById("prayers");
+      container.innerHTML = "";
+
+      names.forEach(name => {
+        const row = document.createElement("div");
+        row.className = "prayer";
+
+        const label = document.createElement("b");
+        label.textContent = name;
+        row.appendChild(label);
+
+        [["prayed","✓"],["not_prayed","✗"]].forEach(([status, symbol]) => {
+          const btn = document.createElement("button");
+          btn.textContent = symbol;
+          btn.className = (status === "prayed" ? "yes" : "no") +
+            (record[name] === status ? " active" : "");
+
+          btn.onclick = () => {
+            const current = getRecord(date);
+            current[name] = current[name] === status ? null : status;
+            saveRecord(date, current);
+            renderDay();
+            renderCalendar();
+          };
+
+          row.appendChild(btn);
+        });
+
+        container.appendChild(row);
+      });
+
+      const prayed = names.filter(n => record[n] === "prayed").length;
+      document.getElementById("progress").textContent =
+        `Prayed: ${prayed} / 5`;
+    }
+
+    function renderCalendar() {
+      const month = monthInput.value;
+      if (!month) return;
+
+      const [year, mon] = month.split("-").map(Number);
+      const total = new Date(year, mon, 0).getDate();
+      const calendar = document.getElementById("calendar");
+      calendar.innerHTML = "";
+
+      calendar.style.display = "grid";
+      calendar.style.gridTemplateColumns = "repeat(7,minmax(0,1fr))";
+      calendar.style.gap = "5px";
+
+      ["S","M","T","W","T","F","S"].forEach(day => {
+        const cell = document.createElement("b");
+        cell.textContent = day;
+        cell.style.textAlign = "center";
+        calendar.appendChild(cell);
+      });
+
+      for (let i = 0; i < new Date(year, mon-1, 1).getDay(); i++) {
+        calendar.appendChild(document.createElement("span"));
+      }
+
+      for (let d = 1; d <= total; d++) {
+        const date = `${month}-${String(d).padStart(2,"0")}`;
+        const record = getRecord(date);
+        const count = names.filter(n => record[n] === "prayed").length;
+        const btn = document.createElement("button");
+
+        btn.textContent = d + (count ? "\n✓" + count : "");
+        btn.style.padding = "8px 2px";
+        btn.style.background = date === dayInput.value ? "#bde8ca" : "#f1f5f2";
+        btn.style.whiteSpace = "pre-line";
+        btn.onclick = () => {
+          dayInput.value = date;
+          renderDay();
+          renderCalendar();
+        };
+        calendar.appendChild(btn);
+      }
+    }
+
+    dayInput.addEventListener("change", () => {
+      monthInput.value = dayInput.value.slice(0,7);
+      renderDay();
+      renderCalendar();
+    });
+    monthInput.addEventListener("change", renderCalendar);
+
+    renderDay();
+    renderCalendar();
+  </script>
+</body>
+</html>
